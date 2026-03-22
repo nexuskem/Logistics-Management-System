@@ -3,32 +3,60 @@ import api from '../utils/api';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import Modal from '../components/Modal';
 
+const blankForm = { plate: '', make: '', model: '', year: '', type: 'TRUCK', capacity: '', status: 'AVAILABLE' };
+
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ plate: '', make: '', model: '', year: '', type: 'TRUCK', capacity: '', status: 'AVAILABLE' });
+  const [formData, setFormData] = useState(blankForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        const res = await api.get('/vehicles');
-        setVehicles(res.data);
-      } catch (err) {
-        console.error("Failed to fetch vehicles", err);
-        setVehicles([]);
-      } finally {
-        setLoading(false);
+  const fetchVehicles = async () => {
+    try {
+      const res = await api.get('/vehicles');
+      setVehicles(res.data);
+    } catch (err) {
+      console.error('Failed to fetch vehicles', err);
+      setVehicles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchVehicles(); }, []);
+
+  const handleClose = () => {
+    setIsModalOpen(false);
+    setFormData(blankForm);
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      if (formData.id) {
+        await api.put(`/vehicles/${formData.id}`, formData);
+      } else {
+        await api.post('/vehicles', formData);
       }
-    };
-    fetchVehicles();
-  }, []);
+      handleClose();
+      fetchVehicles();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save vehicle');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Vehicle Management</h1>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-transform hover:-translate-y-0.5 shadow-lg shadow-orange-500/20 font-medium"
         >
@@ -52,23 +80,13 @@ const Vehicles = () => {
             </thead>
             <tbody className="divide-y divide-brand-border text-sm">
               {loading ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-brand-muted">
-                    Loading vehicles...
-                  </td>
-                </tr>
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-brand-muted">Loading vehicles...</td></tr>
               ) : vehicles.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-brand-muted">
-                    No vehicles found. Click "Add Vehicle" to create one.
-                  </td>
-                </tr>
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-brand-muted">No vehicles found. Click "Add Vehicle" to create one.</td></tr>
               ) : (
                 vehicles.map((v) => (
                   <tr key={v.id} className="hover:bg-brand-panel-light/60 transition-colors">
-                    <td className="px-6 py-5 font-bold text-white">
-                      {v.plate}
-                    </td>
+                    <td className="px-6 py-5 font-bold text-white">{v.plate}</td>
                     <td className="px-6 py-5 text-brand-muted">{v.make} {v.model} ({v.year})</td>
                     <td className="px-6 py-5 text-brand-muted">{v.type}</td>
                     <td className="px-6 py-5 text-brand-muted">{v.capacity} Tons</td>
@@ -83,11 +101,8 @@ const Vehicles = () => {
                       </span>
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <button 
-                        onClick={() => {
-                          setFormData(v);
-                          setIsModalOpen(true);
-                        }}
+                      <button
+                        onClick={() => { setFormData(v); setIsModalOpen(true); }}
                         className="text-brand-orange hover:text-orange-400 font-semibold transition-colors">Edit</button>
                     </td>
                   </tr>
@@ -98,8 +113,9 @@ const Vehicles = () => {
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setFormData({ plate: '', make: '', model: '', year: '', type: 'TRUCK', capacity: '', status: 'AVAILABLE' }); }} title={formData.id ? "Edit Vehicle" : "Add New Vehicle"}>
-        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); setIsModalOpen(false); }}>
+      <Modal isOpen={isModalOpen} onClose={handleClose} title={formData.id ? 'Edit Vehicle' : 'Add New Vehicle'}>
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Plate Number</label>
@@ -122,7 +138,8 @@ const Vehicles = () => {
               <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full px-4 py-2.5 bg-brand-dark border border-brand-border rounded-lg text-white focus:ring-2 focus:ring-brand-orange outline-none">
                 <option value="TRUCK">Truck</option>
                 <option value="VAN">Van</option>
-                <option value="MOTORCYCLE">Motorcycle</option>
+                <option value="PICKUP">Pickup</option>
+                <option value="MOTORBIKE">Motorbike</option>
               </select>
             </div>
             <div>
@@ -140,8 +157,10 @@ const Vehicles = () => {
             </div>
           </div>
           <div className="pt-4 flex justify-end gap-3 mt-4 border-t border-brand-border/50">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-lg text-sm font-bold text-brand-muted hover:text-white transition-colors">Cancel</button>
-            <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-bold bg-brand-orange text-white hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition-all">Save Vehicle</button>
+            <button type="button" onClick={handleClose} className="px-5 py-2.5 rounded-lg text-sm font-bold text-brand-muted hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-lg text-sm font-bold bg-brand-orange text-white hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition-all disabled:opacity-60">
+              {saving ? 'Saving...' : 'Save Vehicle'}
+            </button>
           </div>
         </form>
       </Modal>

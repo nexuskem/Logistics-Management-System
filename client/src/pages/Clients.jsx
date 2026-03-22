@@ -3,35 +3,60 @@ import api from '../utils/api';
 import { PlusIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
 import Modal from '../components/Modal';
 
+const blankForm = { name: '', company: '', phone: '', email: '', address: '', payment_terms: '' };
+
 const Clients = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', company: '', phone: '', email: '', address: '', status: 'ACTIVE' });
+  const [formData, setFormData] = useState(blankForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const res = await api.get('/clients');
-        setClients(res.data);
-      } catch (err) {
-        console.error("Failed to fetch clients", err);
-        setClients([]);
-      } finally {
-        setLoading(false);
+  const fetchClients = async () => {
+    try {
+      const res = await api.get('/clients');
+      setClients(res.data);
+    } catch (err) {
+      console.error('Failed to fetch clients', err);
+      setClients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchClients(); }, []);
+
+  const handleClose = () => {
+    setIsModalOpen(false);
+    setFormData(blankForm);
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      if (formData.id) {
+        await api.put(`/clients/${formData.id}`, formData);
+      } else {
+        await api.post('/clients', formData);
       }
-    };
-    fetchClients();
-  }, []);
+      handleClose();
+      fetchClients();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save client');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Clients</h1>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-transform hover:-translate-y-0.5 shadow-lg shadow-orange-500/20 font-medium"
-        >
+        <button onClick={() => setIsModalOpen(true)} className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-transform hover:-translate-y-0.5 shadow-lg shadow-orange-500/20 font-medium">
           <PlusIcon className="w-5 h-5" />
           <span>Add Client</span>
         </button>
@@ -46,7 +71,7 @@ const Clients = () => {
           </div>
         ) : (
           clients.map(client => (
-            <div key={client.id} className="bg-brand-panel rounded-2xl shadow-xl border border-brand-border p-6 flex items-start gap-4 hover:shadow-2xl hover:border-brand-border transition-all hover:-translate-y-1">
+            <div key={client.id} className="bg-brand-panel rounded-2xl shadow-xl border border-brand-border p-6 flex items-start gap-4 hover:shadow-2xl transition-all hover:-translate-y-1">
               <div className="bg-brand-panel-light text-brand-orange p-3 rounded-xl border border-brand-border">
                 <BriefcaseIcon className="w-8 h-8" />
               </div>
@@ -59,7 +84,7 @@ const Clients = () => {
                   <p className="text-xs text-gray-500 mt-2">{client.address}</p>
                 </div>
                 <div className="mt-4 pt-4 border-t border-brand-border/50 flex justify-end">
-                   <button onClick={() => { setFormData(client); setIsModalOpen(true); }} className="text-sm font-bold text-brand-orange hover:text-orange-400">Edit Client</button>
+                  <button onClick={() => { setFormData(client); setIsModalOpen(true); }} className="text-sm font-bold text-brand-orange hover:text-orange-400">Edit Client</button>
                 </div>
               </div>
             </div>
@@ -67,8 +92,9 @@ const Clients = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setFormData({ name: '', company: '', phone: '', email: '', address: '', status: 'ACTIVE' }); }} title={formData.id ? "Edit Client" : "Add New Client"}>
-        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setIsModalOpen(false); }}>
+      <Modal isOpen={isModalOpen} onClose={handleClose} title={formData.id ? 'Edit Client' : 'Add New Client'}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm">{error}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Contact Person Name</label>
@@ -80,7 +106,7 @@ const Clients = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Phone Phone</label>
+                <label className="block text-sm font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Phone</label>
                 <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-2.5 bg-brand-dark border border-brand-border rounded-lg text-white focus:ring-2 focus:ring-brand-orange outline-none" placeholder="0712345678" required />
               </div>
               <div>
@@ -94,8 +120,10 @@ const Clients = () => {
             </div>
           </div>
           <div className="pt-4 flex justify-end gap-3 mt-4 border-t border-brand-border/50">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-lg text-sm font-bold text-brand-muted hover:text-white transition-colors">Cancel</button>
-            <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-bold bg-brand-orange text-white hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition-all">Save Client</button>
+            <button type="button" onClick={handleClose} className="px-5 py-2.5 rounded-lg text-sm font-bold text-brand-muted hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-lg text-sm font-bold bg-brand-orange text-white hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition-all disabled:opacity-60">
+              {saving ? 'Saving...' : 'Save Client'}
+            </button>
           </div>
         </form>
       </Modal>
