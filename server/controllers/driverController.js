@@ -28,8 +28,16 @@ const getDriverById = async (req, res) => {
 const createDriver = async (req, res) => {
   try {
     const { name, phone, license_no, license_class, expiry, status } = req.body;
+
+    // Validate that expiry is a valid, parseable date — reject garbage like
+    // dates with bogus years that come from partial/programmatic typing.
+    const expiryDate = new Date(expiry);
+    if (!expiry || isNaN(expiryDate.getTime()) || expiryDate.getFullYear() > 2100) {
+      return res.status(400).json({ error: 'Bad request', message: 'Invalid license expiry date. Expected format: YYYY-MM-DD' });
+    }
+
     const driver = await prisma.driver.create({
-      data: { name, phone, license_no, license_class, expiry: new Date(expiry), status }
+      data: { name, phone, license_no, license_class, expiry: expiryDate, status }
     });
     res.status(201).json(driver);
   } catch (err) {

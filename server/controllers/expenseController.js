@@ -16,13 +16,19 @@ const getExpenses = async (req, res) => {
 const createExpense = async (req, res) => {
   try {
     const { vehicle_id, trip_id, category, amount, date, notes } = req.body;
+
+    const expenseDate = new Date(date);
+    if (!date || isNaN(expenseDate.getTime())) {
+      return res.status(400).json({ error: 'Bad request', message: 'Invalid or missing date. Expected format: YYYY-MM-DD' });
+    }
+
     const expense = await prisma.expense.create({
       data: {
-        vehicle_id,
-        trip_id,
+        ...(vehicle_id && { vehicle: { connect: { id: vehicle_id } } }),
+        ...(trip_id && { trip: { connect: { id: trip_id } } }),
         category,
         amount: parseFloat(amount),
-        date: new Date(date),
+        date: expenseDate,
         notes
       }
     });
@@ -47,27 +53,33 @@ const getFuelLogs = async (req, res) => {
 const createFuelLog = async (req, res) => {
   try {
     const { vehicle_id, trip_id, litres, cost_per_litre, station, date } = req.body;
+
+    const fuelDate = new Date(date);
+    if (!date || isNaN(fuelDate.getTime())) {
+      return res.status(400).json({ error: 'Bad request', message: 'Invalid or missing date. Expected format: YYYY-MM-DD' });
+    }
+
     const total = parseFloat(litres) * parseFloat(cost_per_litre);
     const fuelLog = await prisma.fuelLog.create({
       data: {
-        vehicle_id,
-        trip_id,
+        vehicle: { connect: { id: vehicle_id } },
+        ...(trip_id && { trip: { connect: { id: trip_id } } }),
         litres: parseFloat(litres),
         cost_per_litre: parseFloat(cost_per_litre),
         total,
         station,
-        date: new Date(date)
+        date: fuelDate
       }
     });
 
     // Also log this as an expense automatically
     await prisma.expense.create({
       data: {
-        vehicle_id,
-        trip_id,
+        vehicle: { connect: { id: vehicle_id } },
+        ...(trip_id && { trip: { connect: { id: trip_id } } }),
         category: 'FUEL',
         amount: total,
-        date: new Date(date),
+        date: fuelDate,
         notes: `Fuel logged from station: ${station}`
       }
     });

@@ -159,7 +159,7 @@ enum InvoiceStatus {
 
 model Invoice {
   id         String        @id @default(uuid())
-  trip_id    String
+  trip_id    String?
   client_id  String
   amount     Float
   vat        Float
@@ -170,13 +170,13 @@ model Invoice {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
-  trip   Trip   @relation(fields: [trip_id], references: [id])
+  trip   Trip?   @relation(fields: [trip_id], references: [id])
   client Client @relation(fields: [client_id], references: [id])
 }
 
 model Expense {
   id         String   @id @default(uuid())
-  vehicle_id String
+  vehicle_id String?
   trip_id    String?
   category   String
   amount     Float
@@ -185,8 +185,8 @@ model Expense {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  vehicle Vehicle @relation(fields: [vehicle_id], references: [id])
-  trip    Trip?   @relation(fields: [trip_id], references: [id])
+  vehicle Vehicle? @relation(fields: [vehicle_id], references: [id])
+  trip    Trip?    @relation(fields: [trip_id], references: [id])
 }
 
 model FuelLog {

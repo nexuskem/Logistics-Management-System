@@ -42,28 +42,45 @@ const getTripById = async (req, res) => {
 
 const createTrip = async (req, res) => {
   try {
-    const { vehicle_id, driver_id, client_id, route_id, status, cargo_details, pickup_date, delivery_date } = req.body;
+    const { vehicle_id, driver_id, client_id, route_origin, route_destination, status, cargo_details, pickup_date, delivery_date } = req.body;
+
+    // Auto-find or create a Route from origin/destination
+    let route = await prisma.route.findFirst({
+      where: { origin: route_origin, destination: route_destination }
+    });
+    if (!route) {
+      route = await prisma.route.create({
+        data: {
+          name: `${route_origin} → ${route_destination}`,
+          origin: route_origin,
+          destination: route_destination,
+          distance_km: 0,
+          duration_hrs: 0
+        }
+      });
+    }
+
     const trip = await prisma.trip.create({
       data: {
         vehicle_id,
         driver_id,
         client_id,
-        route_id,
-        status,
+        route_id: route.id,
+        status: status || 'SCHEDULED',
         cargo_details,
         pickup_date: new Date(pickup_date),
         delivery_date: new Date(delivery_date)
       },
-      include: { driver: true, client: true, vehicle: true }
+      include: { driver: true, client: true, vehicle: true, route: true }
     });
-    
+
     // Update vehicle and driver status to ON_TRIP
     await prisma.vehicle.update({ where: { id: vehicle_id }, data: { status: 'ON_TRIP' } });
     await prisma.driver.update({ where: { id: driver_id }, data: { status: 'ON_TRIP' } });
-    
-    // Send SMS to Driver
+
+    // Send SMS to Driver (non-blocking)
     if (trip.driver?.phone) {
-      await sendSms(trip.driver.phone, `You have been assigned a new trip on ${new Date(pickup_date).toLocaleDateString()} with vehicle ${trip.vehicle?.plate}. Cargo: ${cargo_details}.`);
+      sendSms(trip.driver.phone, `New trip assigned on ${new Date(pickup_date).toLocaleDateString()} with vehicle ${trip.vehicle?.plate}. Cargo: ${cargo_details}.`).catch(() => {});
     }
 
     res.status(201).json(trip);

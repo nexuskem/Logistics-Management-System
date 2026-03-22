@@ -43,8 +43,8 @@ The application is powered by a robust relational schema mapped via Prisma. Key 
 - **`Client`**: Stores client contact details and corporate information.
 - **`Route`**: Defines common origin-destination pairs, geographical distances, and estimated times.
 - **`Trip`**: The core operational model. It links a Vehicle, Driver, Client, and Route together, maintaining logs of scheduling, dispatch, and delivery timestamps.
-- **`Invoice`**: Links to a Trip and Client to manage billing (Amount, VAT, Overdue tracking, M-Pesa References).
-- **`Expense` / `FuelLog` / `Maintenance`**: Micro-ledger tracking of all operational costs distributed across fleets and trips.
+- **`Invoice`**: Manages client billing (Amount, VAT, Overdue tracking, M-Pesa References). Can be optionally linked to a specific `Trip` or kept standalone for general billing.
+- **`Expense` / `FuelLog` / `Maintenance`**: Micro-ledger tracking of all operational costs. Expenses can flexibly be tied to a specific `Vehicle` or `Trip`, or logged system-wide.
 
 ---
 
@@ -59,9 +59,9 @@ The application is powered by a robust relational schema mapped via Prisma. Key 
 - **Role-Based Protected Routes**: Frontend route guarding ensuring users must be systematically authenticated.
 
 ### 🚚 Operational Modules (REST APIs & UI)
-- **Vehicles, Drivers, and Clients**: Comprehensive CRUD support linking database models to fully-styled React pages.
-- **Trips**: Robust state management mapping trips to their corresponding logistic links.
-- **Finance**: Operational insights via invoices and expenses interfaces.
+- **Vehicles, Drivers, and Clients**: Comprehensive, highly-robust CRUD support mapping database models to fully-styled React pages with intuitive date handling.
+- **Trips**: Robust state management mapping trips to their corresponding logistic links (Drivers, Vehicles, Routes).
+- **Finance (Invoices & Expenses)**: Flexible financial ledgers that accommodate both trip-specific operational tracking and general business expenses. Complete with full CRUD operations.
 
 ---
 
@@ -112,6 +112,7 @@ npm run dev
 ```
 
 ### 4. Running the Application
-1. Once both servers are running successfully, open your browser and navigate to `http://localhost:5173`.
+1. Once both servers are running successfully, open your browser and navigate to
+ `http://localhost:5173`.
 2. Click **Sign Up** on the authentication page to create your initial administrative account.
 3. Access the dashboard to begin creating your vehicles, registering drivers, and assigning logistic trips!

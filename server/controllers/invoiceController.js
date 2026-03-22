@@ -31,15 +31,20 @@ const createInvoice = async (req, res) => {
   try {
     const { trip_id, client_id, amount, vat } = req.body;
     const total = parseFloat(amount) + parseFloat(vat || 0);
-    const invoice = await prisma.invoice.create({
-      data: {
-        trip_id,
-        client_id,
-        amount: parseFloat(amount),
-        vat: parseFloat(vat || 0),
-        total
-      }
-    });
+
+    // Build the data object conditionally — do NOT include trip_id when it's
+    // absent/empty, as Prisma treats any trip_id field as a required relation.
+    const data = {
+      client: { connect: { id: client_id } },
+      amount: parseFloat(amount),
+      vat: parseFloat(vat || 0),
+      total,
+    };
+    if (trip_id) {
+      data.trip = { connect: { id: trip_id } };
+    }
+
+    const invoice = await prisma.invoice.create({ data });
     res.status(201).json(invoice);
   } catch (err) {
     res.status(400).json({ error: 'Bad request', message: err.message });
