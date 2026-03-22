@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OPERATIONS_MANAGER
+  FINANCE_OFFICER
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  password  String
+  role      Role       @default(CLIENT)
+  phone     String?
+  status    UserStatus @default(ACTIVE)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ON_TRIP
+  UNDER_MAINTENANCE
+  GROUNDED
+}
+
+enum VehicleType {
+  TRUCK
+  PICKUP
+  MOTORBIKE
+  VAN
+}
+
+model Vehicle {
+  id        String        @id @default(uuid())
+  plate     String        @unique
+  make      String
+  model     String
+  year      Int
+  capacity  Float         // Tons or KG depending on business logic
+  status    VehicleStatus @default(AVAILABLE)
+  type      VehicleType
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  trips       Trip[]
+  expenses    Expense[]
+  fuelLogs    FuelLog[]
+  maintenance Maintenance[]
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_TRIP
+  OFF_DUTY
+  SUSPENDED
+}
+
+model Driver {
+  id            String       @id @default(uuid())
+  name          String
+  phone         String       @unique
+  license_no    String       @unique
+  license_class String
+  expiry        DateTime
+  status        DriverStatus @default(AVAILABLE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  trips Trip[]
+}
+
+model Client {
+  id            String   @id @default(uuid())
+  name          String
+  company       String?
+  email         String   @unique
+  phone         String
+  address       String?
+  payment_terms String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trips    Trip[]
+  invoices Invoice[]
+}
+
+model Route {
+  id           String   @id @default(uuid())
+  name         String
+  origin       String
+  destination  String
+  distance_km  Float
+  duration_hrs Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  trips Trip[]
+}
+
+enum TripStatus {
+  SCHEDULED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+model Trip {
+  id              String     @id @default(uuid())
+  vehicle_id      String
+  driver_id       String
+  client_id       String
+  route_id        String
+  status          TripStatus @default(SCHEDULED)
+  cargo_details   String
+  pickup_date     DateTime
+  delivery_date   DateTime
+  actual_delivery DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [id])
+  driver  Driver  @relation(fields: [driver_id], references: [id])
+  client  Client  @relation(fields: [client_id], references: [id])
+  route   Route   @relation(fields: [route_id], references: [id])
+
+  invoices Invoice[]
+  expenses Expense[]
+  fuelLogs FuelLog[]
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+}
+
+model Invoice {
+  id         String        @id @default(uuid())
+  trip_id    String
+  client_id  String
+  amount     Float
+  vat        Float
+  total      Float
+  status     InvoiceStatus @default(DRAFT)
+  paid_at    DateTime?
+  mpesa_ref  String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  trip   Trip   @relation(fields: [trip_id], references: [id])
+  client Client @relation(fields: [client_id], references: [id])
+}
+
+model Expense {
+  id         String   @id @default(uuid())
+  vehicle_id String
+  trip_id    String?
+  category   String
+  amount     Float
+  date       DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [id])
+  trip    Trip?   @relation(fields: [trip_id], references: [id])
+}
+
+model FuelLog {
+  id             String   @id @default(uuid())
+  vehicle_id     String
+  trip_id        String?
+  litres         Float
+  cost_per_litre Float
+  total          Float
+  station        String?
+  date           DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [id])
+  trip    Trip?   @relation(fields: [trip_id], references: [id])
+}
+
+model Maintenance {
+  id           String   @id @default(uuid())
+  vehicle_id   String
+  service_type String
+  date         DateTime
+  cost         Float
+  next_service DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicle_id], references: [id])
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  SUCCESS
+  WARNING
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  user_id    String
+  message    String
+  type       NotificationType @default(INFO)
+  read       Boolean          @default(false)
+  created_at DateTime         @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  user_id    String
+  action     String
+  table_name String
+  record_id  String
+  timestamp  DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id])
+}
